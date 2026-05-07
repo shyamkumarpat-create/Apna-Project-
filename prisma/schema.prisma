@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  password         String
+  avatar           String?
+  bio              String?
+  phone            String?
+  role             UserRole  @default(BUYER)
+  lastLoginAt      DateTime?
+  loginStreak      Int       @default(0)
+  pushSubscription String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  properties      Property[]
+  likes           Like[]
+  comments        Comment[]
+  sentMessages    Message[]            @relation("SentMessages")
+  conversations   ConversationMember[]
+  gamification    Gamification?
+  earnedBadges    UserBadge[]
+  pointEvents     PointEvent[]
+  initiatedConvos Conversation[]       @relation("InitiatedConversations")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+model Property {
+  id           String         @id @default(cuid())
+  title        String
+  description  String
+  price        Float
+  priceUnit    PriceUnit      @default(TOTAL)
+  type         PropertyType
+  listingType  ListingType
+  area         Float
+  bedrooms     Int?
+  bathrooms    Int?
+  floors       Int?
+  parkingSpots Int?
+  city         String
+  state        String
+  address      String
+  pincode      String?
+  images       String         @default("[]")
+  amenities    String         @default("[]")
+  status       PropertyStatus @default(AVAILABLE)
+  isFeatured   Boolean        @default(false)
+  viewCount    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  owner    User      @relation(fields: [ownerId], references: [id])
+  ownerId  String
+  likes    Like[]
+  comments Comment[]
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  VILLA
+  PLOT
+  COMMERCIAL
+  OFFICE
+  SHOP
+  WAREHOUSE
+  FARMHOUSE
+  PG
+}
+
+enum ListingType {
+  SALE
+  RENT
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  SOLD
+  RENTED
+  UNDER_NEGOTIATION
+}
+
+enum PriceUnit {
+  TOTAL
+  PER_SQFT
+  PER_MONTH
+}
+
+model Like {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  property   Property @relation(fields: [propertyId], references: [id])
+  propertyId String
+
+  @@unique([userId, propertyId])
+}
+
+model Comment {
+  id         String    @id @default(cuid())
+  body       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String
+  property   Property  @relation(fields: [propertyId], references: [id])
+  propertyId String
+  parentId   String?
+  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies    Comment[] @relation("CommentReplies")
+}
+
+model Conversation {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  initiatorId String
+  propertyId  String?
+
+  initiator User                @relation("InitiatedConversations", fields: [initiatorId], references: [id])
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  id             String   @id @default(cuid())
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  body           String
+  type           MessageType @default(TEXT)
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  senderId       String
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  PROPERTY_SHARE
+}
+
+model Gamification {
+  id            String   @id @default(cuid())
+  totalPoints   Int      @default(0)
+  weeklyPoints  Int      @default(0)
+  monthlyPoints Int      @default(0)
+  level         Int      @default(1)
+  updatedAt     DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+}
+
+model PointEvent {
+  id          String      @id @default(cuid())
+  points      Int
+  action      PointAction
+  description String
+  createdAt   DateTime    @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+}
+
+enum PointAction {
+  REGISTER
+  FIRST_LISTING
+  POST_LISTING
+  RECEIVE_LIKE
+  GIVE_LIKE
+  POST_COMMENT
+  RECEIVE_COMMENT
+  LOGIN_STREAK_3
+  LOGIN_STREAK_7
+  LOGIN_STREAK_30
+  PROFILE_COMPLETE
+  FIRST_CHAT
+  USE_ROI_CALCULATOR
+  USE_DOC_VALIDATOR
+  PROPERTY_VIEWED_10
+  PROPERTY_VIEWED_100
+}
+
+model Badge {
+  id             String    @id @default(cuid())
+  name           String    @unique
+  slug           String    @unique
+  description    String
+  icon           String
+  color          String
+  tier           BadgeTier
+  requiredPoints Int?
+  condition      String
+
+  earnedBy UserBadge[]
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  earnedAt DateTime @default(now())
+
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  badge   Badge  @relation(fields: [badgeId], references: [id])
+  badgeId String
+
+  @@unique([userId, badgeId])
+}
+
+enum BadgeTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+model DailyLimit {
+  id     String @id @default(cuid())
+  userId String
+  action String
+  date   String
+  count  Int    @default(1)
+
+  @@unique([userId, action, date])
+}

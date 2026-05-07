@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": ".ts-build",
+    "noEmit": false,
+    "esModuleInterop": true
+  },
+  "include": ["server.ts", "prisma/seed.ts", "src/lib/**/*", "src/generated/**/*"]
+}
